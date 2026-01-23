@@ -1,0 +1,9 @@
+benchmark:
+  name: "60/40 SPY-BND"
+  type: static
+
+  weights:
+    SPY: 0.6
+    BND: 0.4
+
+  rebalance_frequency: none
