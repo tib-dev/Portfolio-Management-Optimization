@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "medi_tg_analytics"
+name = "pmo_forcasting"
 version = "0.1.0"
-description = "End-to-end Telegram data warehouse and analytics for Ethiopian medical businesses"
+description = "Time series forecasting and portfolio optimization for data-driven investment decision making"
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
 license = { text = "MIT" }
@@ -15,16 +15,16 @@ authors = [
 ]
 
 keywords = [
-    "telegram",
-    "data-warehouse",
-    "dbt",
-    "fastapi",
-    "etl",
-    "dagster",
-    "yolov8",
-    "analytics",
-    "healthcare",
-    "mlops"
+    "portfolio-management",
+    "time-series",
+    "forecasting",
+    "arima",
+    "lstm",
+    "modern-portfolio-theory",
+    "efficient-frontier",
+    "risk-management",
+    "backtesting",
+    "quantitative-finance"
 ]
 
 classifiers = [
@@ -32,29 +32,38 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial :: Investment",
     "Topic :: Scientific/Engineering :: Information Analysis",
-    "Topic :: Software Development :: Libraries"
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
 
 dependencies = [
+    # Core scientific stack
     "numpy",
     "pandas",
-    "sqlalchemy",
-    "psycopg2-binary",
-    "fastapi",
-    "uvicorn",
-    "pydantic",
+    "scipy",
+
+    # Market data
+    "yfinance",
+
+    # Visualization
+    "matplotlib",
+    "seaborn",
+
+    # Time series & statistics
+    "statsmodels",
+    "pmdarima",
+
+    # Machine learning / deep learning
+    "scikit-learn",
+    "tensorflow",
+
+    # Portfolio optimization
+    "PyPortfolioOpt",
+
+    # Utilities
     "python-dotenv",
-    "pyyaml",
-    "telethon",
-    "ultralytics",
-    "dbt-postgres",
-    "dagster",
-    "dagster-webserver",
-    "requests",
-    "beautifulsoup4",
-    "lxml",
-    "matplotlib"
+    "tqdm"
 ]
 
 [project.optional-dependencies]
@@ -64,19 +73,20 @@ dev = [
     "black",
     "isort",
     "flake8",
-    "pre-commit",
     "mypy",
-    "jupyter"
+    "pre-commit",
+    "jupyter",
+    "ipykernel"
 ]
 
 [project.urls]
-Homepage = "https://github.com/tib-dev/medical-telegram-analytics"
-Documentation = "https://github.com/tib-dev/medical-telegram-analytics/docs"
-Source = "https://github.com/tib-dev/medical-telegram-analytics"
+Homepage = "https://github.com/tib-dev/portfolio-management-optimization"
+Source = "https://github.com/tib-dev/portfolio-management-optimization"
+Documentation = "https://github.com/tib-dev/portfolio-management-optimization/docs"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["medi_tg_analytics*"]
+include = ["pmo_forcasting*"]
 
 # -----------------------
 # Formatting & Linting
@@ -89,11 +99,10 @@ exclude = '''
 /(
     \.venv
   | \.git
-  | \.dvc
   | data
   | logs
-  | dbt/medical_warehouse
   | notebooks
+  | reports
 )/
 '''
 
@@ -111,8 +120,8 @@ exclude = [
     "__pycache__",
     "data",
     "logs",
-    "dbt/medical_warehouse",
-    "notebooks"
+    "notebooks",
+    "reports"
 ]
 
 # -----------------------
@@ -121,13 +130,13 @@ exclude = [
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra --cov=medi_tg_analytics"
+addopts = "-ra --cov=pmo_forcasting"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["medi_tg_analytics"]
+source = ["pmo_forcasting"]
 omit = [
     "tests/*",
-    "src/medi_tg_analytics/api/*",
-    "notebooks/*"
+    "notebooks/*",
+    "reports/*"
 ]
