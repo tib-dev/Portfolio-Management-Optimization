@@ -1,0 +1,20 @@
+optimization:
+  method: mean_variance
+
+  constraints:
+    long_only: true
+    min_weight: 0.0
+    max_weight: 0.7
+
+  objective:
+    type: max_sharpe        # max_sharpe | min_volatility
+    risk_free_rate: 0.02
+
+  covariance:
+    method: sample
+    shrinkage: false
+
+  assets_included:
+    - TSLA
+    - SPY
+    - BND
