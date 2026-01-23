@@ -1,0 +1,28 @@
+forecasting:
+  target_asset: TSLA
+  horizon_months: 12
+
+  train_test_split:
+    train_end: "2024-12-31"
+    test_start: "2025-01-01"
+
+  stationarity:
+    test: adf
+    significance_level: 0.05
+    apply_differencing_if_needed: true
+
+  models:
+    arima:
+      enabled: true
+      auto: true
+      max_p: 5
+      max_d: 2
+      max_q: 5
+      seasonal: false
+
+    baseline:
+      enabled: true
+      method: historical_mean
+
+  output:
+    metric: expected_return   # not price
