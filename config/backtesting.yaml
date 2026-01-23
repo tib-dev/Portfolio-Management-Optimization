@@ -1,0 +1,19 @@
+backtesting:
+  period:
+    start: "2025-01-01"
+    end: "2026-01-15"
+
+  rebalance:
+    enabled: true
+    frequency: monthly
+
+  transaction_costs:
+    enabled: false
+    cost_per_trade: 0.001
+
+  metrics:
+    - cumulative_return
+    - annualized_return
+    - volatility
+    - sharpe_ratio
+    - max_drawdown
