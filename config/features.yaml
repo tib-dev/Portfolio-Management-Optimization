@@ -1,0 +1,21 @@
+features:
+  returns:
+    method: log        # log or simple
+    frequency: daily
+
+  rolling_metrics:
+    windows:
+      volatility: 30
+      mean_return: 30
+      correlation: 60
+
+  risk_metrics:
+    var:
+      confidence_level: 0.95
+      method: historical
+    sharpe_ratio:
+      risk_free_rate: 0.02   # annualized
+
+  scaling:
+    enabled: true
+    method: standard        # standard | minmax
