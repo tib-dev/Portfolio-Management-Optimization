@@ -1,0 +1,36 @@
+data:
+  source: yfinance
+  frequency: daily
+  timezone: UTC
+
+assets:
+  - ticker: TSLA
+    name: Tesla Inc
+    asset_class: equity
+    risk_profile: high
+  - ticker: SPY
+    name: S&P 500 ETF
+    asset_class: equity
+    risk_profile: medium
+  - ticker: BND
+    name: Vanguard Total Bond Market ETF
+    asset_class: bond
+    risk_profile: low
+
+date_range:
+  start: "2015-01-01"
+  end: "2026-01-15"
+
+fields:
+  prices:
+    - open
+    - high
+    - low
+    - close
+    - adj_close
+  volume: true
+
+preprocessing:
+  adjust_prices: true
+  fill_missing: forward_fill
+  drop_non_trading_days: true
