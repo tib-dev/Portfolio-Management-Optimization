@@ -42,6 +42,7 @@ dependencies = [
     "numpy",
     "pandas",
     "scipy",
+    "pyaml",
 
     # Market data
     "yfinance",
