@@ -1,0 +1,8 @@
+{
+  // Python configuration
+  "python.analysis.extraPaths": ["./src", "./pmo_forcasting"],
+  "python.testing.unittestArgs": ["-v", "-s", "./tests", "-p", "test_*.py"],
+  "python.testing.unittestEnabled": true,
+  "python.languageServer": "Pylance",
+
+}
