@@ -1,28 +1,36 @@
-forecasting:
-  target_asset: TSLA
-  horizon_months: 12
-
-  train_test_split:
+forecasting:  
+  data:
+    ticker: ticker
+    target_col: adj_close
+    date_col: date
+    train_start: "2015-01-01"
     train_end: "2024-12-31"
     test_start: "2025-01-01"
-
-  stationarity:
-    test: adf
-    significance_level: 0.05
-    apply_differencing_if_needed: true
-
-  models:
-    arima:
-      enabled: true
-      auto: true
+    test_end: "2026-01-15"
+  
+  arima:
+    seasonal: true
+    m: 5             # Seasonal period
+    auto_arima:
+      start_p: 0
+      start_q: 0
       max_p: 5
-      max_d: 2
       max_q: 5
-      seasonal: false
-
-    baseline:
-      enabled: true
-      method: historical_mean
-
-  output:
-    metric: expected_return   # not price
+      d: null
+      seasonal_d: null
+      trace: true
+  
+  lstm:
+    window_size: 60
+    epochs: 30
+    batch_size: 32
+    learning_rate: 0.001
+    hidden_units: 64
+    num_layers: 2
+    dropout: 0.2
+  
+  evaluation:
+    metrics: [mae, rmse, mape]
+  
+  registry:
+    save_dir: "data/models"
