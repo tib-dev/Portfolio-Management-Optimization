@@ -7,8 +7,8 @@ __pycache__/
 .vscode/
 logs/
 *.log
-data/
 data/raw/
+data/interim
 data/processed/
 *.env
 .env
