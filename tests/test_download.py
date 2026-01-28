@@ -3,7 +3,7 @@ from typing import Dict, List
 import pandas as pd
 import pytest
 
-from pmo_forcasting.data.pipeline import MarketDataDownloader
+from pmo_forecasting.data.pipeline import MarketDataDownloader
 
 
 # ---------------------------------------------------------------------
