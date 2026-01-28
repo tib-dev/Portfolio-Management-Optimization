@@ -1,36 +1,42 @@
-forecasting:  
+forecasting:
   data:
-    ticker: ticker
-    target_col: adj_close
-    date_col: date
+    ticker: "TSLA"
+    target_col: "adj_close"
+    date_col: "date"
     train_start: "2015-01-01"
     train_end: "2024-12-31"
     test_start: "2025-01-01"
     test_end: "2026-01-15"
-  
+    scaling: "MinMaxScaler" # Critical for LSTM convergence
+    feature_engineering: ["rolling_mean_7", "rolling_std_7"]
+
   arima:
     seasonal: true
-    m: 5             # Seasonal period
+    m: 5  # Trading days in a week
     auto_arima:
-      start_p: 0
-      start_q: 0
+      d: null # Auto-detect stationarity
+      seasonal_d: null
       max_p: 5
       max_q: 5
-      d: null
-      seasonal_d: null
-      trace: true
+      suppress_warnings: true
   
   lstm:
     window_size: 60
-    epochs: 30
+    epochs: 50             # Reduced from 100 to prevent overfitting
     batch_size: 32
-    learning_rate: 0.001
-    hidden_units: 64
-    num_layers: 2
+    learning_rate: 0.0005
+    hidden_units: [64, 32] # Stacked architecture for better pattern recognition
     dropout: 0.2
-  
-  evaluation:
-    metrics: [mae, rmse, mape]
-  
-  registry:
-    save_dir: "data/models"
+    forecasting_days: 252  # Forecasting horizon (approx. 12 months)
+
+portfolio_optimization:
+  data:
+    target_col: "daily_return"
+    risk_free_rate: 0.04   # Current treasury yield approximation
+  metrics:
+    - "sharpe_ratio"
+    - "volatility"
+    - "value_at_risk"
+  optimization:
+    method: "mean_variance"
+    simulations: 10000     # Number of Monte Carlo portfolios to generate
