@@ -1,7 +1,6 @@
 data:
   source: yfinance
   frequency: daily
-  timezone: UTC
 
 assets:
   - ticker: TSLA
