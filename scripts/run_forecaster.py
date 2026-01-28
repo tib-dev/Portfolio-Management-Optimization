@@ -1,10 +1,10 @@
 import pandas as pd
 import tensorflow as tf
 
-from pmo_forcasting.core.settings import settings
-from pmo_forcasting.data.handler import DataHandler
-import pmo_forcasting.forecasting.data_preparation as dp
-import pmo_forcasting.forecasting.lstm.recursive as fr
+from pmo_forecasting.core.settings import settings
+from pmo_forecasting.data.handler import DataHandler
+import pmo_forecasting.forecasting.data_preparation as dp
+import pmo_forecasting.forecasting.lstm.recursive as fr
 
 
 def main():
