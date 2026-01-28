@@ -5,7 +5,7 @@ from typing import Union, Literal, Optional, Any
 import logging
 import joblib
 
-from pmo_forcasting.core.settings import settings
+from pmo_forecasting.core.settings import settings
 
 logger = logging.getLogger(__name__)
 

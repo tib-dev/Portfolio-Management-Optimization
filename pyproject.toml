@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pmo_forcasting"
+name = "pmo_forecasting"
 version = "0.1.0"
 description = "Time series forecasting and portfolio optimization for data-driven investment decision making"
 readme = "README.md"
@@ -87,7 +87,7 @@ Documentation = "https://github.com/tib-dev/portfolio-management-optimization/do
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["pmo_forcasting*"]
+include = ["pmo_forecasting*"]
 
 # -----------------------
 # Formatting & Linting
@@ -131,11 +131,11 @@ exclude = [
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra --cov=pmo_forcasting"
+addopts = "-ra --cov=pmo_forecasting"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["pmo_forcasting"]
+source = ["pmo_forecasting"]
 omit = [
     "tests/*",
     "notebooks/*",

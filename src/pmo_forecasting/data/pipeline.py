@@ -1,8 +1,8 @@
 import logging
 import pandas as pd
-from pmo_forcasting.data.source import YahooFinanceProvider
-from pmo_forcasting.data.formater import DataTransformer
-from pmo_forcasting.data.persistance import StorageRepository
+from pmo_forecasting.data.source import YahooFinanceProvider
+from pmo_forecasting.data.formater import DataTransformer
+from pmo_forecasting.data.persistence import StorageRepository
 from typing import Dict
 
 logger = logging.getLogger(__name__)

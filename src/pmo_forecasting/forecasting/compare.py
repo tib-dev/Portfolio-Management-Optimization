@@ -4,7 +4,7 @@ forecasting/compare.py
 Model comparison, selection, and champion model persistence.
 """
 
-from pmo_forcasting.core.project_root import get_project_root
+from pmo_forecasting.core.project_root import get_project_root
 from typing import Dict, Any
 import pandas as pd
 import shutil

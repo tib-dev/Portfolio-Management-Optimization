@@ -4,12 +4,12 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Any
 
-from pmo_forcasting.forecasting.arima.model import build_arima, train_arima
-from pmo_forcasting.forecasting.arima.forecast import forecast_arima
-from pmo_forcasting.forecasting.lstm.model import build_lstm, train_lstm
-from pmo_forcasting.forecasting.lstm.forecast import forecast_lstm
-from pmo_forcasting.forecasting.evaluate import evaluate
-from pmo_forcasting.forecasting.registry import ModelRegistry
+from pmo_forecasting.forecasting.arima.model import build_arima, train_arima
+from pmo_forecasting.forecasting.arima.forecast import forecast_arima
+from pmo_forecasting.forecasting.lstm.model import build_lstm, train_lstm
+from pmo_forecasting.forecasting.lstm.forecast import forecast_lstm
+from pmo_forecasting.forecasting.evaluate import evaluate
+from pmo_forecasting.forecasting.registry import ModelRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -131,33 +131,33 @@ class ForecastingPipeline:
 
     def _run_lstm(self, data: Dict[str, Any], run_id: str) -> Dict[str, float]:
         logger.info("Running LSTM pipeline step")
-    
+
         # Extract data from bundle
         X_train, y_train = data["lstm_train"]
         X_test, y_test = data["lstm_test"]
         scaler = data["scaler"]
         cfg = self.config["forecasting"]["lstm"]
-    
+
         # 1. Build and Train
         model = build_lstm(input_shape=(
             X_train.shape[1], X_train.shape[2]), cfg=cfg)
         trained_model, _ = train_lstm(model, X_train, y_train, cfg)
-    
+
         # 2. Generate Predictions (Result is 0-1 scaled)
         # Ensure your forecast_lstm doesn't internally inverse_scale yet for consistency
         preds_scaled = trained_model.predict(X_test)
-    
+
         # 3. CRITICAL FIX: Inverse Scale both Predictions AND Ground Truth
         # Reshape is required for the scaler: (n_samples, 1)
         preds_dollars = scaler.inverse_transform(preds_scaled).flatten()
-    
+
         y_true_scaled = y_test.reshape(-1, 1)
         y_true_dollars = scaler.inverse_transform(y_true_scaled).flatten()
-    
+
         # 4. Evaluate USD vs USD
         # This will fix the 47,000% MAPE and $351 MAE
         metrics = evaluate(y_true_dollars, preds_dollars)
-    
+
         # 5. Register
         model_name = f"lstm_{run_id}"
         self.registry.register(
@@ -167,6 +167,6 @@ class ForecastingPipeline:
             metrics=metrics,
             config=cfg,
         )
-    
+
         logger.info("LSTM finished. Corrected Metrics: %s", metrics)
         return metrics

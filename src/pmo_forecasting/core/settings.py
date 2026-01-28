@@ -3,7 +3,7 @@ from typing import Dict
 import logging
 import yaml
 
-from pmo_forcasting.core.project_root import get_project_root
+from pmo_forecasting.core.project_root import get_project_root
 
 logger = logging.getLogger(__name__)
 

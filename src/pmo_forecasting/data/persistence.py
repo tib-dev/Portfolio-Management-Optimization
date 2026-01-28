@@ -20,8 +20,9 @@ class StorageRepository:
         path = self.base_path / f"{ticker}.csv"
         if not path.exists():
             return pd.DataFrame()
+
         df = pd.read_csv(path)
-        df["date"] = pd.to_datetime(df["date"], utc=True)
+
         return df
 
     def exists(self, ticker: str) -> bool:
