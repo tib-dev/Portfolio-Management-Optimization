@@ -1,9 +1,10 @@
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 import pandas as pd
 import pytest
 
 from pmo_forcasting.data.market_data_downloader import MarketDataDownloader
+
 
 # ---------------------------------------------------------------------
 # Fixtures
@@ -34,6 +35,7 @@ def sample_config() -> Dict:
         ],
     }
 
+
 @pytest.fixture
 def fake_yfinance_df() -> pd.DataFrame:
     dates = pd.date_range("2020-01-01", periods=5, freq="B")
@@ -49,6 +51,7 @@ def fake_yfinance_df() -> pd.DataFrame:
         index=dates,
     )
 
+
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
@@ -56,7 +59,9 @@ def fake_yfinance_df() -> pd.DataFrame:
 def mock_yfinance_download(monkeypatch, df: pd.DataFrame):
     def _mock_download(*args, **kwargs):
         return df.copy()
+
     monkeypatch.setattr("yfinance.download", _mock_download)
+
 
 # ---------------------------------------------------------------------
 # Tests
@@ -71,12 +76,31 @@ def test_run_downloads_and_combines_data(
     """Downloader should return a combined DataFrame with all tickers."""
     mock_yfinance_download(monkeypatch, fake_yfinance_df)
 
-    downloader = MarketDataDownloader(config=sample_config, output_dir=tmp_path)
+    downloader = MarketDataDownloader(
+        config=sample_config,
+        output_dir=tmp_path,
+    )
+
     df = downloader.run(force=True)
 
     assert isinstance(df, pd.DataFrame)
     assert not df.empty
     assert set(df["ticker"].unique()) == {"TSLA", "SPY"}
+
+    expected_cols = {
+        "date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "adj_close",
+        "volume",
+        "ticker",
+        "asset_class",
+        "risk_profile",
+    }
+    assert expected_cols.issubset(df.columns)
+
 
 def test_csv_persistence_and_reload(
     tmp_path: Path,
@@ -88,6 +112,7 @@ def test_csv_persistence_and_reload(
     mock_yfinance_download(monkeypatch, fake_yfinance_df)
 
     downloader = MarketDataDownloader(sample_config, tmp_path)
+
     df_first = downloader.run(force=True)
     df_second = downloader.run(force=False)
 
@@ -95,23 +120,23 @@ def test_csv_persistence_and_reload(
     assert (tmp_path / "TSLA.csv").exists()
     assert (tmp_path / "SPY.csv").exists()
 
+
 def test_missing_data_raises_error(
     tmp_path: Path,
     sample_config: Dict,
     monkeypatch,
 ):
-    """
-    Update: The source code raises RuntimeError if yfinance returns no data.
-    The test should catch this exception.
-    """
+    """Empty yfinance response should trigger a RuntimeError per implementation."""
     def _empty_download(*args, **kwargs):
         return pd.DataFrame()
 
     monkeypatch.setattr("yfinance.download", _empty_download)
+
     downloader = MarketDataDownloader(sample_config, tmp_path)
 
     with pytest.raises(RuntimeError, match="Yahoo Finance returned no data."):
         downloader.run(force=True)
+
 
 def test_schema_guard_enforced(
     tmp_path: Path,
@@ -119,14 +144,17 @@ def test_schema_guard_enforced(
     fake_yfinance_df: pd.DataFrame,
     monkeypatch,
 ):
-    """Missing required OHLC columns should result in an empty DataFrame."""
+    """Missing required OHLC columns should result in an empty DataFrame (graceful fail)."""
     broken_df = fake_yfinance_df.drop(columns=["Close"])
+
     mock_yfinance_download(monkeypatch, broken_df)
 
     downloader = MarketDataDownloader(sample_config, tmp_path)
+
     df = downloader.run(force=True)
 
     assert df.empty
+
 
 def test_single_asset_failure_does_not_break_others(
     tmp_path: Path,
@@ -135,23 +163,27 @@ def test_single_asset_failure_does_not_break_others(
     monkeypatch,
 ):
     """
-    Failure for one ticker should not prevent others from loading.
-    Note: yfinance batch downloads return a list of tickers. 
-    We mock it to return an empty DF only when TSLA is requested.
+    Failure for one ticker (TSLA) should not prevent others (SPY) from loading.
+    The mock ensures TSLA is treated as empty data.
     """
     def _conditional_download(tickers, *args, **kwargs):
-        # Handle both single string and list of tickers
-        if tickers == "TSLA" or (isinstance(tickers, list) and tickers == ["TSLA"]):
+        # Normalize tickers to a list
+        ticker_list = [tickers] if isinstance(tickers, str) else tickers
+     
+        if ticker_list == ["TSLA"]:
             return pd.DataFrame()
+  
         return fake_yfinance_df.copy()
 
     monkeypatch.setattr("yfinance.download", _conditional_download)
 
     downloader = MarketDataDownloader(sample_config, tmp_path)
+
     df = downloader.run(force=True)
 
     assert not df.empty
-    # Ensure TSLA was filtered out and only SPY remains
+    
+    # Assert that TSLA is not in the final consolidated data
     assert "TSLA" not in df["ticker"].values
     assert "SPY" in df["ticker"].values
     assert df["ticker"].nunique() == 1
