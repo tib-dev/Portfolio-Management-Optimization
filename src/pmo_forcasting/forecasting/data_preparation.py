@@ -3,65 +3,72 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from typing import Dict, Any, Tuple
 
-def prepare_data_from_df(df: pd.DataFrame, config: Dict) -> Dict[str, Any]:
-    """Processes an in-memory DataFrame with timezone handling."""
-    try:
-        cfg = config['forecasting']['data']
-        target = cfg['target_col']
-        date_col = cfg['date_col']
 
-        # 1. Preprocessing & Timezone Normalization
-        df_proc = df.copy()
-        df_proc[date_col] = pd.to_datetime(df_proc[date_col])
-        df_proc = df_proc.sort_values(date_col).set_index(date_col)
+def prepare_forecasting_data(df: pd.DataFrame, cfg: Dict) -> Dict[str, Any]:
+    """
+    Improved data preparation module that supports both ARIMA (raw data) 
+    and LSTM (scaled sequences).
+    """
+    data_cfg = cfg["forecasting"]["data"]
+    lstm_cfg = cfg["forecasting"]["lstm"]
+    target = data_cfg["target_col"]
+    date_col = data_cfg["date_col"]
+    window = lstm_cfg.get("window_size", 60)
 
-        # Check for timezone awareness and normalize to naive for consistent slicing
-        if df_proc.index.tz is not None:
-            df_proc.index = df_proc.index.tz_localize(None)
+    # 1. Clean and Sort
+    df = df.copy()
+    df[date_col] = pd.to_datetime(df[date_col])
+    df = df.sort_values(date_col).set_index(date_col)
 
-        # 2. Temporal Splitting
-        train_df = df_proc.loc[cfg['train_start']:cfg['train_end']]
-        test_df = df_proc.loc[cfg['test_start']:cfg['test_end']]
+    # Remove timezone info for compatibility with ARIMA/LSTM
+    if df.index.tz is not None:
+        df.index = df.index.tz_localize(None)
 
-        # 3. Scaling
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        train_scaled = scaler.fit_transform(train_df[[target]])
-        test_scaled = scaler.transform(test_df[[target]])
+    # 2. Time-Based Split (Raw for ARIMA)
+    train_df = df.loc[data_cfg["train_start"]:data_cfg["train_end"]]
+    test_df = df.loc[data_cfg["test_start"]:data_cfg["test_end"]]
 
-        return {
-            "train_df": train_df,
-            "test_df": test_df,
-            "train_scaled": train_scaled,
-            "test_scaled": test_scaled,
-            "scaler": scaler,
-            "target_col": target
-        }
-    except Exception as e:
-        print(f"Data preparation failed: {e}")
-        raise
+    # 3. Scaling (Mandatory for LSTM)
+    # Fit ONLY on training data to prevent future information leakage
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    train_scaled = scaler.fit_transform(train_df[[target]])
+    test_scaled = scaler.transform(test_df[[target]])
 
-def create_sequences(data: np.ndarray, window_size: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Converts scaled array into 3D LSTM sequences."""
-    X, y = [], []
-    for i in range(window_size, len(data)):
-        X.append(data[i-window_size:i, 0])
-        y.append(data[i, 0])
-    X = np.array(X).reshape(-1, window_size, 1)
-    return X, np.array(y)
+    # 4. Generate LSTM Sequences
+    # We include a bit of the end of the train set for the first test sequence
+    # to avoid losing the first 60 days of the test period.
+    full_test_input = np.vstack((train_scaled[-window:], test_scaled))
 
-def get_model_ready_data(df: pd.DataFrame, config: Dict) -> Dict[str, Any]:
-    """Wrapper to generate ARIMA and LSTM formats from df."""
-    prep = prepare_data_from_df(df, config)
-    win_size = config['forecasting']['lstm']['window_size']
-
-    X_train, y_train = create_sequences(prep["train_scaled"], win_size)
-    X_test, y_test = create_sequences(prep["test_scaled"], win_size)
+    X_train, y_train = make_lstm_sequences(train_scaled, window)
+    X_test, y_test = make_lstm_sequences(full_test_input, window)
 
     return {
-        "arima_train": prep["train_df"][prep["target_col"]],
-        "arima_test": prep["test_df"][prep["target_col"]],
-        "lstm_train": (X_train, y_train),
-        "lstm_test": (X_test, y_test),
-        "scaler": prep["scaler"]
+        # Data for ARIMA (Needs raw dollar values)
+        "y_train_raw": train_df[target],
+        "y_test_raw": test_df[target],
+
+        # Data for LSTM (Needs 3D scaled sequences)
+        "X_train_lstm": X_train,
+        "y_train_lstm": y_train,
+        "X_test_lstm": X_test,
+        "y_test_lstm": y_test,
+
+        # Utilities for Evaluation & Plotting
+        "scaler": scaler,
+        "test_index": test_df.index,
+        "target_col": target
     }
 
+
+def make_lstm_sequences(data: np.ndarray, window: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Converts 1D time series data into 3D sequences (Samples, Window, Features).
+    """
+    X, y = [], []
+    for i in range(window, len(data)):
+        X.append(data[i - window:i, 0])
+        y.append(data[i, 0])
+
+    X_array = np.array(X).reshape(-1, window, 1)
+    y_array = np.array(y)
+    return X_array, y_array
