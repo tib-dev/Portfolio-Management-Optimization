@@ -3,7 +3,7 @@ from typing import Dict, List
 import pandas as pd
 import pytest
 
-from pmo_forcasting.data.market_data_downloader import MarketDataDownloader
+from pmo_forcasting.data.pipeline import MarketDataDownloader
 
 
 # ---------------------------------------------------------------------
@@ -169,10 +169,10 @@ def test_single_asset_failure_does_not_break_others(
     def _conditional_download(tickers, *args, **kwargs):
         # Normalize tickers to a list
         ticker_list = [tickers] if isinstance(tickers, str) else tickers
-     
+
         if ticker_list == ["TSLA"]:
             return pd.DataFrame()
-  
+
         return fake_yfinance_df.copy()
 
     monkeypatch.setattr("yfinance.download", _conditional_download)
@@ -182,7 +182,7 @@ def test_single_asset_failure_does_not_break_others(
     df = downloader.run(force=True)
 
     assert not df.empty
-    
+
     # Assert that TSLA is not in the final consolidated data
     assert "TSLA" not in df["ticker"].values
     assert "SPY" in df["ticker"].values
