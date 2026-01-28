@@ -15,6 +15,12 @@ data/processed/
 .env.local
 .env.*.local
 .idea/
-*.sqlite3
-*.db
-*.egg-info/
+*.swp
+*.swo
+.DS_Store
+
+# --- Shell / Setup ---
+# init_setup.sh is usually kept in git, 
+# but ignore it if it contains local-only paths
+# init_setup.sh
+models/
