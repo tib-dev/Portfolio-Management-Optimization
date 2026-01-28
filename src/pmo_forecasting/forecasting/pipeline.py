@@ -1,13 +1,11 @@
 from datetime import datetime
 import logging
 import pandas as pd
-import numpy as np
 from typing import Dict, List, Any
 
 from pmo_forecasting.forecasting.arima.model import build_arima, train_arima
 from pmo_forecasting.forecasting.arima.forecast import forecast_arima
 from pmo_forecasting.forecasting.lstm.model import build_lstm, train_lstm
-from pmo_forecasting.forecasting.lstm.forecast import forecast_lstm
 from pmo_forecasting.forecasting.evaluate import evaluate
 from pmo_forecasting.forecasting.registry import ModelRegistry
 
