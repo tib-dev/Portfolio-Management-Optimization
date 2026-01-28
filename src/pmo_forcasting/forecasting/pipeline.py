@@ -1,108 +1,172 @@
-def run_pipeline(df, config_path):
-    """
-    Run the end-to-end forecasting pipeline.
+from datetime import datetime
+import logging
+import pandas as pd
+import numpy as np
+from typing import Dict, List, Any
 
-    This function orchestrates:
-    - configuration loading
-    - data splitting
-    - ARIMA training and forecasting
-    - LSTM training and forecasting
-    - model evaluation and comparison
+from pmo_forcasting.forecasting.arima.model import build_arima, train_arima
+from pmo_forcasting.forecasting.arima.forecast import forecast_arima
+from pmo_forcasting.forecasting.lstm.model import build_lstm, train_lstm
+from pmo_forcasting.forecasting.lstm.forecast import forecast_lstm
+from pmo_forcasting.forecasting.evaluate import evaluate
+from pmo_forcasting.forecasting.registry import ModelRegistry
 
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Preprocessed Tesla price data.
-    config_path : str
-        Path to forecasting YAML configuration.
-
-    Returns
-    -------
-    dict
-        Evaluation metrics for each model.
-    """
-    import pandas as pd
-    from pmo_forcasting.core.settings import settings
-    from pmo_forcasting.forecasting.splits import time_series_split
-    from pmo_forcasting.forecasting.arima.model import build_arima
-    from pmo_forcasting.forecasting.arima.forecast import forecast_arima
-    from pmo_forcasting.forecasting.lstm.dataset import create_sequences
-    from pmo_forcasting.forecasting.lstm.model import build_lstm
-    from pmo_forcasting.forecasting.lstm.train import train_lstm
-    from pmo_forcasting.forecasting.lstm.forecast import forecast_lstm
-    from pmo_forcasting.forecasting.evaluate import evaluate
-
-    cfg = settings.config
-    train, test = time_series_split(df, cfg)
-    y_train = train[cfg["forecasting"]["target_col"]]
-    y_test = test[cfg["forecasting"]["target_col"]]
-
-    # ARIMA
-    arima = build_arima(y_train, cfg)
-    arima_preds = forecast_arima(arima, len(y_test))
-    arima_metrics = evaluate(y_test.values, arima_preds)
-
-    # LSTM
-    X_train, y_train_lstm = create_sequences(
-        y_train.values, cfg["lstm"]["window_size"])
-    combined = pd.concat([y_train, y_test])
-    X_test, y_test_lstm = create_sequences(
-        combined.values, cfg["lstm"]["window_size"])
-
-    lstm = build_lstm((X_train.shape[1], 1), cfg)
-    lstm, _ = train_lstm(lstm, X_train[..., None], y_train_lstm, cfg)
-    lstm_preds = forecast_lstm(lstm, X_test[..., None])
-    lstm_metrics = evaluate(y_test_lstm, lstm_preds)
-
-    return {
-        "ARIMA": arima_metrics,
-        "LSTM": lstm_metrics
-    }
+logger = logging.getLogger(__name__)
 
 
 class ForecastingPipeline:
     """
-    Orchestrates the full time series forecasting lifecycle.
+    End-to-end forecasting pipeline for time series models.
 
-    This pipeline follows industry best practices for
-    financial time series modeling:
-    - chronological splitting
-    - model-specific training logic
-    - out-of-sample evaluation
-    - reproducible configuration via YAML
+    Supported models
+    ----------------
+    - ARIMA / SARIMA (via pmdarima.auto_arima)
+    - LSTM (Keras)
+
+    Responsibilities
+    ----------------
+    - Train model
+    - Generate forecasts
+    - Evaluate with MAE / RMSE / MAPE
+    - Register models and metrics with run-level isolation
     """
 
-    def __init__(self, config, model_builder, trainer, forecaster, evaluator):
+    def __init__(
+        self,
+        config: Dict[str, Any],
+        registry: ModelRegistry,
+        models: List[str],
+    ):
+        self.config = config
+        self.registry = registry
+        self.models = models
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def run(self, data_bundle: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
         """
+        Run forecasting for selected models.
+
         Parameters
         ----------
-        config : dict
-            Experiment configuration loaded from YAML.
-        model_builder : callable
-            Function that constructs a model.
-        trainer : callable
-            Function that trains the model.
-        forecaster : callable
-            Function that generates forecasts.
-        evaluator : callable
-            Function that computes evaluation metrics.
-        """
-        self.config = config
-        self.model_builder = model_builder
-        self.trainer = trainer
-        self.forecaster = forecaster
-        self.evaluator = evaluator
-
-    def run(self, train_data, test_data):
-        """
-        Execute the forecasting pipeline.
+        data_bundle : dict
+            Output of get_model_ready_data()
 
         Returns
         -------
         dict
-            Evaluation metrics.
+            {model_name: metrics}
         """
-        model = self.model_builder(train_data, self.config)
-        model = self.trainer(model)
-        preds = self.forecaster(model, len(test_data))
-        return self.evaluator(test_data, preds)
+        run_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        logger.info("Starting forecasting run: %s", run_id)
+        logger.info("Models requested: %s", self.models)
+
+        results: Dict[str, Dict[str, float]] = {}
+
+        for model_name in self.models:
+            try:
+                if model_name == "arima":
+                    results["arima"] = self._run_arima(data_bundle, run_id)
+
+                elif model_name == "lstm":
+                    results["lstm"] = self._run_lstm(data_bundle, run_id)
+
+                else:
+                    logger.warning("Unknown model '%s' – skipped", model_name)
+
+            except Exception as exc:
+                logger.exception("Model '%s' failed", model_name)
+                results[model_name] = {"error": str(exc)}
+
+        return results
+
+    # ------------------------------------------------------------------
+    # ARIMA
+    # ------------------------------------------------------------------
+
+    def _run_arima(self, data: Dict[str, Any], run_id: str) -> Dict[str, float]:
+        logger.info("Running ARIMA pipeline step")
+
+        y_train: pd.Series = data["arima_train"].dropna()
+        y_test: pd.Series = data["arima_test"].dropna()
+        cfg = self.config["forecasting"]["arima"]
+
+        # Safety check
+        if y_train.index.max() >= y_test.index.min():
+            raise ValueError("ARIMA train/test split overlaps in time")
+
+        # Build + train
+        model_spec = build_arima(y_train, cfg)
+        model = train_arima(model_spec, y_train)
+
+        # Forecast
+        preds = forecast_arima(
+            model,
+            n_periods=len(y_test),
+            index=y_test.index,
+        )
+
+        y_true = y_test.loc[preds.index]
+
+        metrics = evaluate(y_true.values, preds.values)
+
+        model_name = f"arima_{run_id}"
+        self.registry.register(
+            name=model_name,
+            run_id=run_id,
+            model=model,
+            metrics=metrics,
+            config=cfg,
+        )
+
+        logger.info("ARIMA finished. Metrics: %s", metrics)
+        return metrics
+
+    # ------------------------------------------------------------------
+    # LSTM
+    # ------------------------------------------------------------------
+
+
+    def _run_lstm(self, data: Dict[str, Any], run_id: str) -> Dict[str, float]:
+        logger.info("Running LSTM pipeline step")
+    
+        # Extract data from bundle
+        X_train, y_train = data["lstm_train"]
+        X_test, y_test = data["lstm_test"]
+        scaler = data["scaler"]
+        cfg = self.config["forecasting"]["lstm"]
+    
+        # 1. Build and Train
+        model = build_lstm(input_shape=(
+            X_train.shape[1], X_train.shape[2]), cfg=cfg)
+        trained_model, _ = train_lstm(model, X_train, y_train, cfg)
+    
+        # 2. Generate Predictions (Result is 0-1 scaled)
+        # Ensure your forecast_lstm doesn't internally inverse_scale yet for consistency
+        preds_scaled = trained_model.predict(X_test)
+    
+        # 3. CRITICAL FIX: Inverse Scale both Predictions AND Ground Truth
+        # Reshape is required for the scaler: (n_samples, 1)
+        preds_dollars = scaler.inverse_transform(preds_scaled).flatten()
+    
+        y_true_scaled = y_test.reshape(-1, 1)
+        y_true_dollars = scaler.inverse_transform(y_true_scaled).flatten()
+    
+        # 4. Evaluate USD vs USD
+        # This will fix the 47,000% MAPE and $351 MAE
+        metrics = evaluate(y_true_dollars, preds_dollars)
+    
+        # 5. Register
+        model_name = f"lstm_{run_id}"
+        self.registry.register(
+            name=model_name,
+            run_id=run_id,
+            model=trained_model,
+            metrics=metrics,
+            config=cfg,
+        )
+    
+        logger.info("LSTM finished. Corrected Metrics: %s", metrics)
+        return metrics
